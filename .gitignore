@@ -2,3 +2,6 @@
 /bin/
 /build/
 /cadius
+/.release_time
+/test.po
+/Src/_FileInformation.txt

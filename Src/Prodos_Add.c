@@ -334,10 +334,21 @@ static struct prodos_file *LoadFile(char *file_path_data, bool zero_case_bits)
   // Attempt to extract ProDOS metadata from the filename
   char *prodos_meta = strchr(file_name, '#');
   // Skip the delim char and chop off the name string
-  if (prodos_meta && strlen(prodos_meta + 1) == 6)
+  if (prodos_meta)
   {
-    *prodos_meta = '\0';
-    prodos_meta++;
+    int len = strlen(prodos_meta+1);
+    if (len == 6)
+    {
+      *prodos_meta = 0x00;
+      prodos_meta++;
+      char *pm = strchr(file_path_data, '#');
+      if (pm)
+        *pm = 0;
+    }
+    else
+    {
+      printf("error - meta length was: %d\n", len);
+    }
   }
   else prodos_meta = NULL;
 

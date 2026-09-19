@@ -12,6 +12,17 @@ View the contents of an image by using the `CATALOG` command:
 cadius CATALOG ~/path/to/image.po | less
 ```
 
+### Creating a Bootable ProDOS Volume
+
+Use `-B` or `--bootable` with `CREATEVOLUME` to create a volume containing the ProDOS boot files. Set `$CADIUS_SHARE` to the directory containing `PRODOS`, `BASIC.SYSTEM`, and `QUIT.SYSTEM`. These files are included in this repository's `share` directory.
+
+```bash
+export CADIUS_SHARE="$(pwd)/share"
+./cadius CREATEVOLUME boot.po BOOT 140KB --bootable
+```
+
+Cadius verifies that `$CADIUS_SHARE` and all three required files are readable before creating the image.
+
 ## Building
 
 This tutorial covers building for most *nix flavors, or on Windows with Cygwin. Windows instructions coming soon, but you should be able to add all of the files to a new MSVC project and build it.
@@ -36,6 +47,9 @@ Any and all contributions are welcome. Included is also a `cadius.pro` file you 
 - In your PR, please add a changelog entry.
 
 ## Changelog
+
+#### Unreleased
+- Add `-B | --bootable` support to `CREATEVOLUME` for creating bootable ProDOS 2.4.3 volumes.
 
 #### 1.4.6
 - Fix ADDFILE erroneously making the first block of a file sparse (thanks [@inexorabletash](https://github.com/inexorabletash)). [#43](https://github.com/mach-kernel/cadius/pull/43)

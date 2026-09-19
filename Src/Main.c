@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <limits.h>
+#include <unistd.h>
 
 #if IS_WINDOWS
 #include <malloc.h>
@@ -70,7 +72,57 @@
 int apply_global_flags(struct parameter*, int, char**);
 void apply_command_flags(struct parameter*, int, int, char**);
 void usage(char *);
+bool TestCadiusShare(void);
 struct parameter *GetParamLine(int,char *[]);
+
+/********************************************************************/
+/*  TestCadiusShare() :  Verifies the bootable volume support files. */
+/********************************************************************/
+bool TestCadiusShare(void)
+{
+  const char *share_path = getenv("CADIUS_SHARE");
+  const char *required_files[] =
+  {
+    "PRODOS",
+    "BASIC.SYSTEM",
+    "QUIT.SYSTEM",
+    NULL
+  };
+  char file_path[PATH_MAX];
+  int i;
+
+  if(share_path == NULL || *share_path == '\0')
+    {
+      logf_error("  Error: $CADIUS_SHARE is not set or is empty.\n");
+      return(false);
+    }
+
+  for(i=0; required_files[i] != NULL; i++)
+    {
+      int length = snprintf(
+        file_path,
+        sizeof(file_path),
+        "%s%s%s",
+        share_path,
+        share_path[strlen(share_path)-1] == '/' ? "" : "/",
+        required_files[i]
+      );
+
+      if(length < 0 || (size_t)length >= sizeof(file_path))
+        {
+          logf_error("  Error: $CADIUS_SHARE path is too long.\n");
+          return(false);
+        }
+
+      if(access(file_path,R_OK) != 0)
+        {
+          logf_error("  Error: Required boot file is missing or unreadable: '%s'.\n",file_path);
+          return(false);
+        }
+    }
+
+  return(true);
+}
 
 /****************************************************/
 /*  main() :  Fonction principale de l'application. */
@@ -362,6 +414,11 @@ int main(int argc, char *argv[])
     }
   else if(param->action == ACTION_CREATE_VOLUME)
     {
+      if(param->bootable_volume && !TestCadiusShare())
+        return(ERROR_PARAM);
+
+      const char *sharePath = getenv("CADIUS_SHARE");
+
       /* Information */
       logf_info("  - Create volume '%s' :\n",param->image_file_path);
 
@@ -376,6 +433,64 @@ int main(int argc, char *argv[])
       if(current_image == NULL)
         return(ERROR_LOAD);
 
+      // make it bootable if desired
+      if (param->bootable_volume)
+      {
+        logf_info("  - Looking for PRODOS files in '%s' :\n", sharePath);
+
+        char * prodosFiles[] =
+        {
+          "PRODOS#FF0000",
+          "QUIT.SYSTEM#FF2000",
+          "BASIC.SYSTEM#FF0000",
+          NULL
+        };
+
+        int i = 0;
+
+        // switch to add file, and new volume name as path
+        param->action = ACTION_ADD_FILE;
+        param->prodos_folder_path = param->new_volume_name;
+        param->new_volume_name = NULL;
+
+        while(prodosFiles[i])
+        {
+          char filePath[PATH_MAX];
+          snprintf(
+            filePath,
+            sizeof(filePath),
+            "%s%s%s",
+            sharePath,
+            sharePath[strlen(sharePath)-1] == '/' ? "" : "/",
+            prodosFiles[i]
+          );
+
+          /* Chemin du fichier Windows */
+          param->file_path = filePath;
+
+          /* Information */
+          logf_info("  - Add file '%s' :\n", param->file_path);
+
+          /** Ajoute le fichier dans l'archive **/
+          AddFile(
+            current_image,
+            param->file_path,
+            param->prodos_folder_path,
+            param->zero_case_bits,
+            1
+          );
+
+          param->file_path = NULL;
+
+          if (current_image->nb_add_error > 0)
+          {
+            application_error = ERROR_ADD;
+            break;
+          }
+
+          i++;
+        }
+      }
       /* Libération mémoire */
       mem_free_image(current_image);
     }
@@ -588,6 +703,15 @@ void apply_command_flags(struct parameter *params, int start, int argc, char **a
     ) {
       params->zero_case_bits = true;
     }
+
+    if (params->action == ACTION_CREATE_VOLUME
+      && (
+        !my_stricmp(argv[i], "-B") ||
+        !my_stricmp(argv[i], "--bootable")
+      )
+    ) {
+      params->bootable_volume = true;
+    }
   }
 }
 
@@ -633,7 +757,8 @@ void usage(char *program_path)
   logf("        %s CREATEFOLDER  <[2mg|hdv|po]_image_path>   <prodos_folder_path>\n",program_path);
   logf("        [-C | --no-case-bits]\n");
   logf("        %s CREATEVOLUME  <[2mg|hdv|po]_image_path>   <volume_name>         <volume_size>\n",program_path);
-  logf("        [-C | --no-case-bits]\n");
+  logf("        [-C | --no-case-bits] [-B | --bootable]\n");
+  logf("        --bootable requires $CADIUS_SHARE to point to a directory containing PRODOS, BASIC.SYSTEM, and QUIT.SYSTEM\n");
   logf("        ----\n");
   logf("        %s CLEARHIGHBIT  <source_file_path>\n",program_path);
   logf("        %s SETHIGHBIT    <source_file_path>\n",program_path);

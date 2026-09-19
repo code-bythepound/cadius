@@ -14,7 +14,7 @@ cadius CATALOG ~/path/to/image.po | less
 
 ### Creating a Bootable ProDOS Volume
 
-Use `-B` or `--bootable` with `CREATEVOLUME` to create a volume containing the ProDOS boot files. Set `$CADIUS_SHARE` to the directory containing `PRODOS`, `BASIC.SYSTEM`, and `QUIT.SYSTEM`. These files are included in this repository's `share` directory.
+Use `-B` or `--bootable` with `CREATEVOLUME` to create a volume containing the ProDOS boot files. Set `$CADIUS_SHARE` to the directory containing `PRODOS`, `BASIC.SYSTEM`, and `QUIT.SYSTEM`. These files are included in this repository's `share` directory. The bundled system files and the boot block used for new volumes came from the ProDOS 2.4.3 disk image.
 
 ```bash
 export CADIUS_SHARE="$(pwd)/share"
